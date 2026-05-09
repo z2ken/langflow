@@ -1,10 +1,11 @@
 import asyncio
 import json
+import mimetypes
 import os
 from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from langflow.robot.registry import AVAILABLE_ADAPTERS, robot_registry
@@ -168,6 +169,61 @@ async def delete_robot_config(robot_id: str):
         robot_registry.remove(robot_id)
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# ---- 3D simulation: URDF + meshes ----
+
+_MODEL_MIME = {
+    ".stl": "model/stl",
+    ".dae": "model/vnd.collada+xml",
+    ".glb": "model/gltf-binary",
+    ".gltf": "model/gltf+json",
+    ".obj": "text/plain",
+}
+
+
+@router.get("/{robot_id}/urdf")
+async def get_robot_urdf(robot_id: str):
+    try:
+        adapter = robot_registry.get(robot_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Robot '{robot_id}' not found")
+    if adapter.urdf_path is None or not adapter.urdf_path.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Robot '{robot_id}' has no URDF configured",
+        )
+    return {
+        "urdf_xml": adapter.urdf_path.read_text(),
+        "mesh_base_url": f"/api/v1/robots/meshes/{robot_id}",
+    }
+
+
+@router.get("/meshes/{robot_id}/{filename:path}")
+async def get_robot_mesh(robot_id: str, filename: str):
+    try:
+        adapter = robot_registry.get(robot_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Robot '{robot_id}' not found")
+    if adapter.mesh_dir is None or not adapter.mesh_dir.is_dir():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Robot '{robot_id}' has no mesh directory configured",
+        )
+
+    mesh_root = adapter.mesh_dir.resolve()
+    target = (mesh_root / filename).resolve()
+    # Strict containment — reject any traversal
+    try:
+        target.relative_to(mesh_root)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="path traversal blocked")
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail=f"mesh '{filename}' not found")
+
+    suffix = target.suffix.lower()
+    media_type = _MODEL_MIME.get(suffix) or mimetypes.guess_type(str(target))[0] or "application/octet-stream"
+    return FileResponse(target, media_type=media_type)
 
 
 # ---- AI assistant: natural language -> robot script ----
