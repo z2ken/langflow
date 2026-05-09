@@ -11,6 +11,8 @@ interface Props {
   onUnreachable?: () => void;
   /** From useIKSolver(robot).solve. */
   solve: (target: Vector3, currentRad: number[]) => number[] | null;
+  /** Optional gate — return true to reject this update (e.g. collision). */
+  wouldCollide?: (jointsDeg: number[]) => boolean;
 }
 
 const TCP_LINK = "tcp";
@@ -26,6 +28,7 @@ export function IKGizmo({
   onJointsChange,
   onUnreachable,
   solve,
+  wouldCollide,
 }: Props) {
   const targetRef = useRef<Mesh>(null);
   const [unreachableFlash, setUnreachableFlash] = useState(false);
@@ -58,7 +61,9 @@ export function IKGizmo({
       onUnreachable?.();
       return;
     }
-    onJointsChange(result.map((r) => (r * 180) / Math.PI));
+    const nextDeg = result.map((r) => (r * 180) / Math.PI);
+    if (wouldCollide?.(nextDeg)) return; // collision gate
+    onJointsChange(nextDeg);
   };
 
   return (

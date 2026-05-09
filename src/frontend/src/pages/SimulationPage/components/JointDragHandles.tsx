@@ -14,6 +14,8 @@ interface Props {
   jointsDeg: number[];
   enabled: boolean;
   onJointsChange: (next: number[]) => void;
+  /** Optional gate — return true to reject this update (e.g. collision). */
+  wouldCollide?: (jointsDeg: number[]) => boolean;
 }
 
 interface DragState {
@@ -25,7 +27,13 @@ interface DragState {
   limitUpperRad: number;
 }
 
-export function JointDragHandles({ robot, jointsDeg, enabled, onJointsChange }: Props) {
+export function JointDragHandles({
+  robot,
+  jointsDeg,
+  enabled,
+  onJointsChange,
+  wouldCollide,
+}: Props) {
   const dragRef = useRef<DragState | null>(null);
 
   if (!enabled) return null;
@@ -67,6 +75,7 @@ export function JointDragHandles({ robot, jointsDeg, enabled, onJointsChange }: 
     const clamped = Math.max(d.limitLowerRad, Math.min(d.limitUpperRad, targetRad));
     const next = [...jointsDeg];
     next[d.jointIndex] = (clamped * 180) / Math.PI;
+    if (wouldCollide?.(next)) return; // collision gate
     onJointsChange(next);
   };
 

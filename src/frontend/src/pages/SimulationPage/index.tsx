@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Select,
   SelectContent,
@@ -12,9 +12,11 @@ import { ModeTabs } from "./components/ModeTabs";
 import { JointDragHandles } from "./components/JointDragHandles";
 import { IKGizmo } from "./components/IKGizmo";
 import { DragModeTabs, type DragMode } from "./components/DragModeTabs";
+import { CollisionViz } from "./components/CollisionViz";
 import { useUrdf } from "./hooks/useUrdf";
 import { useSimulator } from "./hooks/useSimulator";
 import { useIKSolver } from "./hooks/useIKSolver";
+import { useCollision } from "./hooks/useCollision";
 
 export default function SimulationPage() {
   const [robots, setRobots] = useState<string[]>([]);
@@ -23,10 +25,31 @@ export default function SimulationPage() {
   const { robot, status, error } = useUrdf(robotId || null);
   const { mode, setMode, joints, setJoints, dragEnabled } = useSimulator(robotId);
   const { solve, available: ikAvailable } = useIKSolver(robot);
+  const { check: checkCollision, ready: collisionReady } = useCollision(robot);
 
   useEffect(() => {
     if (dragMode === "IK" && !ikAvailable) setDragMode("FK");
   }, [dragMode, ikAvailable]);
+
+  const collidingLinkSet = useMemo(() => {
+    if (!collisionReady) return new Set<string>();
+    const jointsRad = joints.map((d) => (d * Math.PI) / 180);
+    return checkCollision(jointsRad);
+  }, [joints, checkCollision, collisionReady]);
+
+  const wouldCollide = useMemo(
+    () => (nextDeg: number[]): boolean => {
+      if (!collisionReady) return false;
+      const jointsRad = nextDeg.map((d) => (d * Math.PI) / 180);
+      const next = checkCollision(jointsRad);
+      // Allow leaving an existing collision; only block ENTERING a new one.
+      const newCollisions = Array.from(next).filter(
+        (link) => !collidingLinkSet.has(link),
+      );
+      return newCollisions.length > 0;
+    },
+    [checkCollision, collisionReady, collidingLinkSet],
+  );
 
   useEffect(() => {
     fetch("/api/v1/robots")
@@ -82,6 +105,7 @@ export default function SimulationPage() {
                 jointsDeg={joints}
                 enabled={dragEnabled}
                 onJointsChange={setJoints}
+                wouldCollide={wouldCollide}
               />
             )}
             {dragMode === "IK" && (
@@ -91,8 +115,10 @@ export default function SimulationPage() {
                 enabled={dragEnabled}
                 onJointsChange={setJoints}
                 solve={solve}
+                wouldCollide={wouldCollide}
               />
             )}
+            <CollisionViz robot={robot} colliding={collidingLinkSet} />
           </Scene>
         )}
         {!robotId && (
