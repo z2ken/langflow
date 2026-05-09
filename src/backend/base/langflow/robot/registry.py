@@ -103,7 +103,13 @@ class RobotRegistry:
     ) -> None:
         if robot_id not in self._config:
             raise KeyError(f"Robot '{robot_id}' not found")
+        existing = self._config[robot_id]
         cfg: dict = {"adapter": adapter, "host": host, "port": port}
+        # Preserve-on-omit: passing None for urdf_path/mesh_dir keeps the
+        # existing value. This stops the config UI silently erasing paths
+        # set in robots.yaml when the user edits unrelated fields.
+        urdf_path = urdf_path if urdf_path else existing.get("urdf_path")
+        mesh_dir = mesh_dir if mesh_dir else existing.get("mesh_dir")
         if urdf_path:
             cfg["urdf_path"] = urdf_path
         if mesh_dir:
