@@ -1,72 +1,75 @@
-import math
-import time
+"""Mock adapter — target-tracking for deterministic 3D simulation."""
 
 from langflow.robot.adapters.base import CommandResult, RobotAdapter, RobotStatus
-
-_TASKS = [None, None, None, "移動至 waypoint_A", "執行抓取", "移動至 home"]
 
 
 class MyRobotAdapter(RobotAdapter):
     """
-    Stub adapter with simulated dynamic data.
-    Replace the TODO sections with real private API calls when ready.
+    Mock adapter that reports the last commanded target state.
+    Joints are 6 floats in degrees; gripper is "open" | "close".
+    Replace TODOs with real protocol calls when integrating a physical robot.
     """
 
     def __init__(self, robot_id: str, host: str, port: int, **kwargs):
         super().__init__(robot_id, host, port, **kwargs)
-        self._base_url = f"http://{host}:{port}"
-        self._start_time = time.time()
+        self._joints: list[float] = [0.0] * 6
+        self._gripper: str = "open"
+        self._last_cmd: str | None = None
 
     async def connect(self) -> None:
-        # TODO: replace with real handshake/auth call
-        # async with httpx.AsyncClient() as c:
-        #     await c.post(f"{self._base_url}/connect", json={"token": "..."})
+        # TODO: real handshake
         self._connected = True
 
     async def disconnect(self) -> None:
-        # TODO: replace with real disconnect call
+        # TODO: real disconnect
         self._connected = False
 
     async def get_status(self) -> RobotStatus:
-        # TODO: replace with real status endpoint
-        # async with httpx.AsyncClient() as c:
-        #     r = await c.get(f"{self._base_url}/status")
-        #     d = r.json()
-        #     return RobotStatus(robot_id=self.robot_id, connected=True,
-        #                        joints=d["joints"], position=d["position"], ...)
-
-        # Simulated: joints oscillate sinusoidally to look like a moving robot
-        t = time.time() - self._start_time
-        joints = [
-            round(30 * math.sin(t * 0.3 + i * 1.0), 2)
-            for i in range(6)
-        ]
-        position = {
-            "x": round(200 + 50 * math.sin(t * 0.2), 2),
-            "y": round(150 + 50 * math.cos(t * 0.15), 2),
-            "z": round(300 + 30 * math.sin(t * 0.25), 2),
-            "rx": round(10 * math.sin(t * 0.1), 2),
-            "ry": round(10 * math.cos(t * 0.1), 2),
-            "rz": round(joints[0], 2),
-        }
-        task_index = int(t / 4) % len(_TASKS)
+        # TODO: real status endpoint
         return RobotStatus(
             robot_id=self.robot_id,
             connected=self._connected,
-            joints=joints,
-            position=position,
-            current_task=_TASKS[task_index],
+            joints=list(self._joints),
+            position={},  # forward kinematics is computed client-side from joints
+            current_task=self._last_cmd,
             last_error=None,
+            extra={"gripper": self._gripper},
         )
 
     async def send_command(self, cmd: str, params: dict) -> CommandResult:
-        # TODO: replace with real command endpoint
-        # async with httpx.AsyncClient() as c:
-        #     r = await c.post(f"{self._base_url}/command", json={"cmd": cmd, **params})
-        #     d = r.json()
-        #     return CommandResult(success=d["ok"], message=d["msg"])
+        # TODO: real command endpoint
+        self._last_cmd = cmd
+        cmd_upper = cmd.upper()
 
-        return CommandResult(
-            success=True,
-            message=f"[mock] '{cmd}' executed with {params}",
-        )
+        if cmd_upper == "HOME":
+            self._joints = [0.0] * 6
+            return CommandResult(success=True, message="homed")
+
+        if cmd_upper == "MOVE":
+            for i in range(6):
+                key = f"j{i + 1}"
+                if key in params:
+                    self._joints[i] = float(params[key])
+            return CommandResult(success=True, message=f"moved to {self._joints}")
+
+        if cmd_upper == "JOG":
+            joint = str(params.get("joint", "")).upper()
+            if not joint.startswith("J") or not joint[1:].isdigit():
+                return CommandResult(success=False, message=f"bad joint '{joint}'")
+            idx = int(joint[1:]) - 1
+            if not 0 <= idx < 6:
+                return CommandResult(success=False, message=f"joint index out of range: {joint}")
+            self._joints[idx] += float(params.get("delta", 0))
+            return CommandResult(success=True, message=f"jogged {joint} to {self._joints[idx]}")
+
+        if cmd_upper == "GRIPPER":
+            state = str(params.get("state", "")).lower()
+            if state not in ("open", "close"):
+                return CommandResult(success=False, message=f"bad gripper state '{state}'")
+            self._gripper = state
+            return CommandResult(success=True, message=f"gripper {state}")
+
+        if cmd_upper == "WAIT":
+            return CommandResult(success=True, message=f"waited {params.get('duration', 0)}s")
+
+        return CommandResult(success=False, message=f"unknown command '{cmd}'")
