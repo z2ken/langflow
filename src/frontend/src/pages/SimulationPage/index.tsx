@@ -10,14 +10,23 @@ import { Scene } from "./components/Scene";
 import { RobotModel } from "./components/RobotModel";
 import { ModeTabs } from "./components/ModeTabs";
 import { JointDragHandles } from "./components/JointDragHandles";
+import { IKGizmo } from "./components/IKGizmo";
+import { DragModeTabs, type DragMode } from "./components/DragModeTabs";
 import { useUrdf } from "./hooks/useUrdf";
 import { useSimulator } from "./hooks/useSimulator";
+import { useIKSolver } from "./hooks/useIKSolver";
 
 export default function SimulationPage() {
   const [robots, setRobots] = useState<string[]>([]);
   const [robotId, setRobotId] = useState<string>("");
+  const [dragMode, setDragMode] = useState<DragMode>("FK");
   const { robot, status, error } = useUrdf(robotId || null);
   const { mode, setMode, joints, setJoints, dragEnabled } = useSimulator(robotId);
+  const { solve, available: ikAvailable } = useIKSolver(robot);
+
+  useEffect(() => {
+    if (dragMode === "IK" && !ikAvailable) setDragMode("FK");
+  }, [dragMode, ikAvailable]);
 
   useEffect(() => {
     fetch("/api/v1/robots")
@@ -46,6 +55,11 @@ export default function SimulationPage() {
           </SelectContent>
         </Select>
         <ModeTabs mode={mode} onModeChange={setMode} />
+        <DragModeTabs
+          mode={dragMode}
+          onModeChange={setDragMode}
+          ikAvailable={ikAvailable}
+        />
       </div>
 
       <div className="relative flex-1 overflow-hidden rounded-md border">
@@ -62,12 +76,23 @@ export default function SimulationPage() {
         {status === "ready" && robot && (
           <Scene>
             <RobotModel robot={robot} jointsDeg={joints} />
-            <JointDragHandles
-              robot={robot}
-              jointsDeg={joints}
-              enabled={dragEnabled}
-              onJointsChange={setJoints}
-            />
+            {dragMode === "FK" && (
+              <JointDragHandles
+                robot={robot}
+                jointsDeg={joints}
+                enabled={dragEnabled}
+                onJointsChange={setJoints}
+              />
+            )}
+            {dragMode === "IK" && (
+              <IKGizmo
+                robot={robot}
+                jointsDeg={joints}
+                enabled={dragEnabled}
+                onJointsChange={setJoints}
+                solve={solve}
+              />
+            )}
           </Scene>
         )}
         {!robotId && (
