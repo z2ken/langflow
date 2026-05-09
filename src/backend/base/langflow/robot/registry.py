@@ -1,5 +1,7 @@
 from pathlib import Path
+
 import yaml
+
 from langflow.robot.adapters.base import RobotAdapter
 from langflow.robot.adapters.my_robot import MyRobotAdapter
 
@@ -29,10 +31,23 @@ class RobotRegistry:
         adapter_cls = _ADAPTER_MAP.get(cfg["adapter"])
         if adapter_cls is None:
             raise ValueError(f"Unknown adapter '{cfg['adapter']}' for robot '{robot_id}'")
+
+        base_dir = self._config_path.parent.resolve() if self._config_path else None
+
+        def _resolve(rel: str | None) -> str | None:
+            if not rel:
+                return None
+            p = Path(rel)
+            if p.is_absolute() or base_dir is None:
+                return str(p.resolve())
+            return str((base_dir / p).resolve())
+
         self._adapters[robot_id] = adapter_cls(
             robot_id=robot_id,
             host=cfg["host"],
             port=int(cfg["port"]),
+            urdf_path=_resolve(cfg.get("urdf_path")),
+            mesh_dir=_resolve(cfg.get("mesh_dir")),
         )
 
     def _save(self) -> None:
