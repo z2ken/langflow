@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from pathlib import Path
 
 
 @dataclass
@@ -21,11 +22,30 @@ class CommandResult:
 
 
 class RobotAdapter(ABC):
-    def __init__(self, robot_id: str, host: str, port: int, **kwargs):
+    def __init__(
+        self,
+        robot_id: str,
+        host: str,
+        port: int,
+        *,
+        urdf_path: str | None = None,
+        mesh_dir: str | None = None,
+        **_kwargs,
+    ):
         self.robot_id = robot_id
         self.host = host
         self.port = port
         self._connected = False
+        self._urdf_path: Path | None = Path(urdf_path) if urdf_path else None
+        self._mesh_dir: Path | None = Path(mesh_dir) if mesh_dir else None
+
+    @property
+    def urdf_path(self) -> Path | None:
+        return self._urdf_path
+
+    @property
+    def mesh_dir(self) -> Path | None:
+        return self._mesh_dir
 
     @abstractmethod
     async def connect(self) -> None: ...
