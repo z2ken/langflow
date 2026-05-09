@@ -70,18 +70,44 @@ class RobotRegistry:
 
     # ---- write ----
 
-    def add(self, robot_id: str, adapter: str, host: str, port: int) -> None:
+    def add(
+        self,
+        robot_id: str,
+        adapter: str,
+        host: str,
+        port: int,
+        *,
+        urdf_path: str | None = None,
+        mesh_dir: str | None = None,
+    ) -> None:
         if robot_id in self._config:
             raise ValueError(f"Robot '{robot_id}' already exists")
-        cfg = {"adapter": adapter, "host": host, "port": port}
+        cfg: dict = {"adapter": adapter, "host": host, "port": port}
+        if urdf_path:
+            cfg["urdf_path"] = urdf_path
+        if mesh_dir:
+            cfg["mesh_dir"] = mesh_dir
         self._config[robot_id] = cfg
         self._instantiate(robot_id, cfg)
         self._save()
 
-    def update(self, robot_id: str, adapter: str, host: str, port: int) -> None:
+    def update(
+        self,
+        robot_id: str,
+        adapter: str,
+        host: str,
+        port: int,
+        *,
+        urdf_path: str | None = None,
+        mesh_dir: str | None = None,
+    ) -> None:
         if robot_id not in self._config:
             raise KeyError(f"Robot '{robot_id}' not found")
-        cfg = {"adapter": adapter, "host": host, "port": port}
+        cfg: dict = {"adapter": adapter, "host": host, "port": port}
+        if urdf_path:
+            cfg["urdf_path"] = urdf_path
+        if mesh_dir:
+            cfg["mesh_dir"] = mesh_dir
         self._config[robot_id] = cfg
         self._instantiate(robot_id, cfg)
         self._save()

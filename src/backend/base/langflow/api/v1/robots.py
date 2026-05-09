@@ -21,6 +21,8 @@ class RobotConfigBody(BaseModel):
     adapter: str
     host: str
     port: int
+    urdf_path: str | None = None
+    mesh_dir: str | None = None
 
 
 class RunProgramRequest(BaseModel):
@@ -83,8 +85,7 @@ async def robot_status_ws(websocket: WebSocket, robot_id: str):
 
 @router.post("/run")
 async def run_program(body: RunProgramRequest):
-    """
-    Execute a simple line-by-line robot program on the specified robot.
+    """Execute a simple line-by-line robot program on the specified robot.
     Each non-empty, non-comment line is parsed as: COMMAND [key=value ...]
     Returns a log of results per line.
     """
@@ -132,19 +133,33 @@ async def list_robot_configs():
 @router.post("/config/{robot_id}", status_code=201)
 async def add_robot_config(robot_id: str, body: RobotConfigBody):
     try:
-        robot_registry.add(robot_id, body.adapter, body.host, body.port)
+        robot_registry.add(
+            robot_id,
+            body.adapter,
+            body.host,
+            body.port,
+            urdf_path=body.urdf_path,
+            mesh_dir=body.mesh_dir,
+        )
     except ValueError as e:
         raise HTTPException(status_code=409, detail=str(e))
-    return {"robot_id": robot_id, **body.model_dump()}
+    return {"robot_id": robot_id, **body.model_dump(exclude_none=True)}
 
 
 @router.put("/config/{robot_id}")
 async def update_robot_config(robot_id: str, body: RobotConfigBody):
     try:
-        robot_registry.update(robot_id, body.adapter, body.host, body.port)
+        robot_registry.update(
+            robot_id,
+            body.adapter,
+            body.host,
+            body.port,
+            urdf_path=body.urdf_path,
+            mesh_dir=body.mesh_dir,
+        )
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return {"robot_id": robot_id, **body.model_dump()}
+    return {"robot_id": robot_id, **body.model_dump(exclude_none=True)}
 
 
 @router.delete("/config/{robot_id}", status_code=204)
@@ -251,11 +266,10 @@ async def generate_program_from_nl(body: NLProgramRequest):
 
 @router.post("/nl-program/stream")
 async def stream_program_from_nl(body: NLProgramRequest):
-    """
-    Streaming variant of /nl-program. Emits Server-Sent Events:
-        event: delta   data: {"text": "..."}
-        event: done    data: {"text": "<full script>"}
-        event: error   data: {"detail": "..."}
+    """Streaming variant of /nl-program. Emits Server-Sent Events:
+    event: delta   data: {"text": "..."}
+    event: done    data: {"text": "<full script>"}
+    event: error   data: {"detail": "..."}
     """
     try:
         robot_registry.get(body.robot_id)
