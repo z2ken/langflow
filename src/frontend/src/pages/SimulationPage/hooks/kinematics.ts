@@ -1,11 +1,17 @@
 import { Matrix4, Quaternion, Vector3 } from "three";
 import type { URDFRobot } from "urdf-loader/src/URDFClasses";
+import {
+  getActuatedJointNames,
+  getEndEffectorLinkName,
+} from "./urdfChain";
 
 export interface JointSpec {
   /** Rotation axis in the joint's local frame (normalized). */
   axis: Vector3;
-  /** Origin of this joint relative to its parent (translation only — URDF rpy collapses into this for our mock 6-DOF). */
+  /** Translation of this joint's frame relative to its parent. */
   origin: Vector3;
+  /** Static rotation of this joint's frame relative to its parent (URDF rpy). Identity if absent. */
+  originRot?: Quaternion;
   /** [lower, upper] in radians. */
   limit: { lower: number; upper: number };
 }
@@ -16,13 +22,6 @@ export interface KinematicChain {
   tcpOffset: Vector3;
 }
 
-const JOINT_NAMES = ["j1", "j2", "j3", "j4", "j5", "j6"] as const;
-const TCP_LINK = "tcp";
-
-/**
- * Compute the TCP world position given a joint vector (radians).
- * Pure function — works on synthetic chains too.
- */
 export function forwardKinematics(
   chain: KinematicChain,
   jointsRad: number[],
@@ -41,6 +40,10 @@ export function forwardKinematics(
     const j = chain.joints[i];
     tmp.makeTranslation(j.origin.x, j.origin.y, j.origin.z);
     m.multiply(tmp);
+    if (j.originRot) {
+      tmp.makeRotationFromQuaternion(j.originRot);
+      m.multiply(tmp);
+    }
     q.setFromAxisAngle(j.axis, jointsRad[i]);
     tmp.makeRotationFromQuaternion(q);
     m.multiply(tmp);
@@ -56,25 +59,25 @@ export function forwardKinematics(
   return new Vector3(m.elements[12], m.elements[13], m.elements[14]);
 }
 
-/**
- * Extract a kinematic chain from a parsed URDF robot.
- *
- * Assumes the robot has joints named j1..j6 (the mock_6dof URDF). Returns
- * null if the robot's structure doesn't match expectations.
- */
 export function urdfToChain(robot: URDFRobot): KinematicChain | null {
+  const names = getActuatedJointNames(robot);
+  if (names.length === 0) return null;
+
   const joints: JointSpec[] = [];
-  for (const name of JOINT_NAMES) {
+  for (const name of names) {
     const j = (robot as any).joints?.[name];
     if (!j) return null;
     const axis = (j.axis as Vector3).clone().normalize();
     const origin = (j.position as Vector3).clone();
+    const originRot = (j.quaternion as Quaternion).clone();
     const lower = typeof j.limit?.lower === "number" ? j.limit.lower : -Math.PI;
     const upper = typeof j.limit?.upper === "number" ? j.limit.upper : Math.PI;
-    joints.push({ axis, origin, limit: { lower, upper } });
+    joints.push({ axis, origin, originRot, limit: { lower, upper } });
   }
 
-  const tcp = (robot as any).links?.[TCP_LINK];
+  const tcpName = getEndEffectorLinkName(robot);
+  if (!tcpName) return null;
+  const tcp = (robot as any).links?.[tcpName];
   if (!tcp) return null;
   const tcpOffset = (tcp.position as Vector3).clone();
 

@@ -1,10 +1,9 @@
 import { ThreeEvent } from "@react-three/fiber";
 import { Sphere } from "@react-three/drei";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Vector3 } from "three";
 import type { URDFRobot } from "urdf-loader/src/URDFClasses";
-
-const JOINT_NAMES = ["j1", "j2", "j3", "j4", "j5", "j6"] as const;
+import { getActuatedJointNames } from "../hooks/urdfChain";
 
 // Drag sensitivity: pixels per radian
 const PIXELS_PER_RAD = 200;
@@ -35,12 +34,13 @@ export function JointDragHandles({
   wouldCollide,
 }: Props) {
   const dragRef = useRef<DragState | null>(null);
+  const jointNames = useMemo(() => getActuatedJointNames(robot), [robot]);
 
   if (!enabled) return null;
 
   const positions: { name: string; index: number; pos: Vector3; limits: [number, number] }[] = [];
-  for (let i = 0; i < JOINT_NAMES.length; i++) {
-    const name = JOINT_NAMES[i];
+  for (let i = 0; i < jointNames.length; i++) {
+    const name = jointNames[i];
     const j = (robot as any).joints?.[name];
     if (!j) continue;
     const pos = new Vector3();

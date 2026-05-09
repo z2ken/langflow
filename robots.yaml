@@ -1,11 +1,17 @@
 robots:
   robot_01:
     adapter: MyRobotAdapter
-    host: "192.168.1.10"
+    host: 192.168.1.10
+    mesh_dir: robots/mock_6dof/meshes
     port: 8080
-    urdf_path: "robots/mock_6dof/mock_6dof.urdf"
-    mesh_dir: "robots/mock_6dof/meshes"
+    urdf_path: robots/mock_6dof/mock_6dof.urdf
   robot_02:
     adapter: MyRobotAdapter
-    host: "192.168.1.11"
+    host: 192.168.1.11
     port: 8080
+  robot_03:
+    adapter: MyRobotAdapter
+    host: 192.168.1.20
+    mesh_dir: robots/ur10/meshes
+    port: 8080
+    urdf_path: robots/ur10/ur10.urdf
