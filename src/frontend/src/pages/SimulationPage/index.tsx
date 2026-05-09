@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/select";
 import { Scene } from "./components/Scene";
 import { RobotModel } from "./components/RobotModel";
+import { ModeTabs } from "./components/ModeTabs";
 import { useUrdf } from "./hooks/useUrdf";
 import { useSimulator } from "./hooks/useSimulator";
 
@@ -15,7 +16,7 @@ export default function SimulationPage() {
   const [robots, setRobots] = useState<string[]>([]);
   const [robotId, setRobotId] = useState<string>("");
   const { robot, status, error } = useUrdf(robotId || null);
-  const { mode, joints } = useSimulator(robotId);
+  const { mode, setMode, joints } = useSimulator(robotId);
 
   useEffect(() => {
     fetch("/api/v1/robots")
@@ -43,7 +44,7 @@ export default function SimulationPage() {
             ))}
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">{mode} 模式</span>
+        <ModeTabs mode={mode} onModeChange={setMode} />
       </div>
 
       <div className="relative flex-1 overflow-hidden rounded-md border">
