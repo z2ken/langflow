@@ -30,7 +30,7 @@ class RobotAdapter(ABC):
         *,
         urdf_path: str | None = None,
         mesh_dir: str | None = None,
-        **_kwargs,
+        **kwargs,
     ):
         self.robot_id = robot_id
         self.host = host
