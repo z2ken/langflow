@@ -13,10 +13,13 @@ import { JointDragHandles } from "./components/JointDragHandles";
 import { IKGizmo } from "./components/IKGizmo";
 import { DragModeTabs, type DragMode } from "./components/DragModeTabs";
 import { CollisionViz } from "./components/CollisionViz";
+import { TrajectoryTrail } from "./components/TrajectoryTrail";
+import { PlaybackPanel } from "./components/PlaybackPanel";
 import { useUrdf } from "./hooks/useUrdf";
 import { useSimulator } from "./hooks/useSimulator";
 import { useIKSolver } from "./hooks/useIKSolver";
 import { useCollision } from "./hooks/useCollision";
+import { useScriptPlayback } from "./hooks/useScriptPlayback";
 
 export default function SimulationPage() {
   const [robots, setRobots] = useState<string[]>([]);
@@ -26,6 +29,10 @@ export default function SimulationPage() {
   const { mode, setMode, joints, setJoints, dragEnabled } = useSimulator(robotId);
   const { solve, available: ikAvailable } = useIKSolver(robot);
   const { check: checkCollision, ready: collisionReady } = useCollision(robot);
+  const [trailClearKey, setTrailClearKey] = useState(0);
+  const playback = useScriptPlayback({
+    onJoints: (jointsDeg) => setJoints(jointsDeg),
+  });
 
   useEffect(() => {
     if (dragMode === "IK" && !ikAvailable) setDragMode("FK");
@@ -85,46 +92,72 @@ export default function SimulationPage() {
         />
       </div>
 
-      <div className="relative flex-1 overflow-hidden rounded-md border">
-        {status === "loading" && (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-            載入 URDF...
-          </div>
-        )}
-        {status === "error" && (
-          <div className="absolute inset-0 flex items-center justify-center text-destructive">
-            URDF 載入失敗：{error}
-          </div>
-        )}
-        {status === "ready" && robot && (
-          <Scene>
-            <RobotModel robot={robot} jointsDeg={joints} />
-            {dragMode === "FK" && (
-              <JointDragHandles
+      <div className="flex flex-1 min-h-0 gap-3">
+        <div className="relative flex-1 overflow-hidden rounded-md border">
+          {status === "loading" && (
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+              載入 URDF...
+            </div>
+          )}
+          {status === "error" && (
+            <div className="absolute inset-0 flex items-center justify-center text-destructive">
+              URDF 載入失敗：{error}
+            </div>
+          )}
+          {status === "ready" && robot && (
+            <Scene>
+              <RobotModel robot={robot} jointsDeg={joints} />
+              {dragMode === "FK" && (
+                <JointDragHandles
+                  robot={robot}
+                  jointsDeg={joints}
+                  enabled={dragEnabled}
+                  onJointsChange={setJoints}
+                  wouldCollide={wouldCollide}
+                />
+              )}
+              {dragMode === "IK" && (
+                <IKGizmo
+                  robot={robot}
+                  jointsDeg={joints}
+                  enabled={dragEnabled}
+                  onJointsChange={setJoints}
+                  solve={solve}
+                  wouldCollide={wouldCollide}
+                />
+              )}
+              <CollisionViz robot={robot} colliding={collidingLinkSet} />
+              <TrajectoryTrail
                 robot={robot}
-                jointsDeg={joints}
-                enabled={dragEnabled}
-                onJointsChange={setJoints}
-                wouldCollide={wouldCollide}
+                recording={
+                  mode === "Live" ||
+                  mode === "Sync" ||
+                  playback.status === "playing"
+                }
+                clearKey={trailClearKey}
               />
-            )}
-            {dragMode === "IK" && (
-              <IKGizmo
-                robot={robot}
-                jointsDeg={joints}
-                enabled={dragEnabled}
-                onJointsChange={setJoints}
-                solve={solve}
-                wouldCollide={wouldCollide}
-              />
-            )}
-            <CollisionViz robot={robot} colliding={collidingLinkSet} />
-          </Scene>
-        )}
-        {!robotId && (
-          <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
-            請選擇機器人
-          </div>
+            </Scene>
+          )}
+          {!robotId && (
+            <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
+              請選擇機器人
+            </div>
+          )}
+        </div>
+        {mode === "Offline" && robotId && (
+          <PlaybackPanel
+            robotId={robotId}
+            status={playback.status}
+            speed={playback.speed}
+            log={playback.log}
+            error={playback.error}
+            onPlay={playback.play}
+            onPause={playback.pause}
+            onResume={playback.resume}
+            onStop={playback.stop}
+            onSpeedChange={playback.setSpeed}
+            onClearTrail={() => setTrailClearKey((k) => k + 1)}
+          />
         )}
       </div>
     </div>
