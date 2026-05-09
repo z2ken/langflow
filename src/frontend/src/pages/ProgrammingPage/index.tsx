@@ -3,6 +3,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CodeEditor } from "./components/CodeEditor";
 import { TeachPendant } from "./components/TeachPendant";
 import { BlocklyEditor } from "./components/BlocklyEditor";
+import { AIAssistant } from "./components/AIAssistant";
 
 export default function ProgrammingPage() {
   const [robots, setRobots] = useState<string[]>([]);
@@ -19,10 +20,14 @@ export default function ProgrammingPage() {
       <h1 className="mb-4 text-2xl font-semibold">程式編寫</h1>
       <Tabs defaultValue="code" className="flex flex-1 flex-col min-h-0">
         <TabsList className="mb-3 border-b">
+          <TabsTrigger value="ai">AI 助理</TabsTrigger>
           <TabsTrigger value="code">文字編程</TabsTrigger>
           <TabsTrigger value="blocks">積木編程</TabsTrigger>
           <TabsTrigger value="pendant">示教器</TabsTrigger>
         </TabsList>
+        <TabsContent value="ai" className="flex-1 min-h-0">
+          <AIAssistant robots={robots} />
+        </TabsContent>
         <TabsContent value="code" className="flex-1 min-h-0">
           <CodeEditor robots={robots} />
         </TabsContent>

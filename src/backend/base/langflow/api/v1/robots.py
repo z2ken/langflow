@@ -1,4 +1,5 @@
 import asyncio
+import os
 from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
@@ -23,6 +24,11 @@ class RobotConfigBody(BaseModel):
 class RunProgramRequest(BaseModel):
     robot_id: str
     code: str
+
+
+class NLProgramRequest(BaseModel):
+    robot_id: str
+    instruction: str
 
 
 @router.get("")
@@ -145,3 +151,97 @@ async def delete_robot_config(robot_id: str):
         robot_registry.remove(robot_id)
     except KeyError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+# ---- AI assistant: natural language -> robot script ----
+
+_NL_SYSTEM_PROMPT = """You are a robot programming assistant. Translate natural language instructions into a robot script.
+
+The script grammar (one command per line):
+- HOME -- return to origin
+- WAIT duration=N -- wait N seconds
+- MOVE j1=N j2=N j3=N j4=N j5=N j6=N -- move to joint angles in degrees (-180 to 180)
+- GRIPPER state=open|close -- open or close the gripper
+- JOG joint=Jx delta=N -- incrementally move joint Jx by N degrees (Jx in J1..J6)
+- Lines starting with # are comments
+
+Rules:
+- Output ONLY the script. No markdown, no explanation, no code fences.
+- Use joint angles in degrees, between -180 and 180.
+- Default to safe sequences: HOME at start, GRIPPER open before pick, GRIPPER close after pick, HOME at end.
+- If the instruction is ambiguous, choose reasonable defaults and add a leading # comment explaining the assumption.
+
+Example:
+User: pick up an item on the left and move it to the right
+Output:
+HOME
+GRIPPER state=open
+MOVE j1=-45 j2=-30 j3=60 j4=0 j5=90 j6=0
+GRIPPER state=close
+WAIT duration=0.5
+MOVE j1=45 j2=-30 j3=60 j4=0 j5=90 j6=0
+GRIPPER state=open
+HOME"""
+
+
+_anthropic_client = None
+
+
+def _get_anthropic_client():
+    global _anthropic_client
+    if _anthropic_client is not None:
+        return _anthropic_client
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise HTTPException(
+            status_code=503,
+            detail="ANTHROPIC_API_KEY 未設定，無法使用 AI 助理。請在後端環境變數中設定後重啟。",
+        )
+    try:
+        import anthropic
+    except ImportError as e:
+        raise HTTPException(status_code=503, detail=f"anthropic SDK 未安裝: {e}")
+
+    _anthropic_client = anthropic.AsyncAnthropic(api_key=api_key)
+    return _anthropic_client
+
+
+@router.post("/nl-program")
+async def generate_program_from_nl(body: NLProgramRequest):
+    """Use Claude to translate a natural language instruction into a robot script."""
+    try:
+        robot_registry.get(body.robot_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Robot '{body.robot_id}' not found")
+    if not body.instruction.strip():
+        raise HTTPException(status_code=400, detail="instruction 不可為空")
+
+    client = _get_anthropic_client()
+
+    import anthropic
+
+    try:
+        message = await client.messages.create(
+            model="claude-opus-4-7",
+            max_tokens=2048,
+            system=[
+                {
+                    "type": "text",
+                    "text": _NL_SYSTEM_PROMPT,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
+            messages=[{"role": "user", "content": body.instruction}],
+        )
+    except anthropic.APIStatusError as e:
+        raise HTTPException(status_code=e.status_code or 502, detail=str(e))
+    except anthropic.APIConnectionError as e:
+        raise HTTPException(status_code=502, detail=f"Anthropic API 連線失敗: {e}")
+
+    text = "".join(b.text for b in message.content if b.type == "text").strip()
+    return {
+        "robot_id": body.robot_id,
+        "instruction": body.instruction,
+        "generated_code": text,
+    }
