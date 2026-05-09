@@ -245,6 +245,13 @@ def get_lifespan(*, fix_migration=False, version=None):
                 except Exception as e:  # noqa: BLE001
                     await logger.awarning(f"Failed to initialize agentic global variables: {e}")
 
+            # Initialize robot registry
+            from langflow.robot.registry import robot_registry
+            _robots_config = Path(__file__).parents[4] / "robots.yaml"
+            robot_registry.load(_robots_config)
+            await robot_registry.connect_all()
+            await logger.adebug("Robot registry initialized")
+
             current_time = asyncio.get_event_loop().time()
             await logger.adebug("Starting telemetry service")
             telemetry_service.start()
@@ -393,6 +400,8 @@ def get_lifespan(*, fix_migration=False, version=None):
 
                 # Step 2: Cleaning Up Services
                 with shutdown_progress.step(2):
+                    from langflow.robot.registry import robot_registry
+                    await robot_registry.disconnect_all()
                     try:
                         await asyncio.wait_for(teardown_services(), timeout=30)
                     except asyncio.TimeoutError:

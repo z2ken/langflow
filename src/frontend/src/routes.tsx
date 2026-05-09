@@ -41,6 +41,9 @@ import ModelProvidersPage from "./pages/SettingsPage/pages/ModelProvidersPage";
 import MessagesPage from "./pages/SettingsPage/pages/messagesPage";
 import ShortcutsPage from "./pages/SettingsPage/pages/ShortcutsPage";
 import ViewPage from "./pages/ViewPage";
+import MonitoringPage from "./pages/MonitoringPage";
+import RobotConfigPage from "./pages/RobotConfigPage";
+import ProgrammingPage from "./pages/ProgrammingPage";
 
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const LoginAdminPage = lazy(() => import("./pages/AdminPage/LoginPage"));
@@ -142,6 +145,9 @@ const router = createBrowserRouter(
                     />
                   </Route>
                 </Route>
+                <Route path="monitoring" element={<MonitoringPage />} />
+                <Route path="robot-config" element={<RobotConfigPage />} />
+                <Route path="programming" element={<ProgrammingPage />} />
                 <Route path="settings" element={<SettingsPage />}>
                   <Route
                     index

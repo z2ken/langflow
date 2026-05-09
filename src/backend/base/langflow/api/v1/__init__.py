@@ -21,6 +21,7 @@ from langflow.api.v1.traces import router as traces_router
 from langflow.api.v1.users import router as users_router
 from langflow.api.v1.validate import router as validate_router
 from langflow.api.v1.variable import router as variables_router
+from langflow.api.v1.robots import router as robots_router
 from langflow.api.v1.voice_mode import router as voice_mode_router
 
 __all__ = [
@@ -48,4 +49,5 @@ __all__ = [
     "validate_router",
     "variables_router",
     "voice_mode_router",
+    "robots_router",
 ]

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { NavLink } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import AlertDropdown from "@/alerts/alertDropDown";
 import LangflowLogo from "@/assets/LangflowLogo.svg?react";
@@ -71,7 +72,55 @@ export default function AppHeader(): JSX.Element {
       </div>
 
       {/* Middle Section */}
-      <div className="absolute left-1/2 -translate-x-1/2">
+      <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1">
+        <NavLink
+          to="/monitoring"
+          className={({ isActive }) =>
+            `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              isActive
+                ? "bg-muted text-primary"
+                : "text-muted-foreground hover:text-primary"
+            }`
+          }
+        >
+          監控
+        </NavLink>
+        <NavLink
+          to="/all"
+          className={({ isActive }) =>
+            `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              isActive
+                ? "bg-muted text-primary"
+                : "text-muted-foreground hover:text-primary"
+            }`
+          }
+        >
+          AI 編程
+        </NavLink>
+        <NavLink
+          to="/programming"
+          className={({ isActive }) =>
+            `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              isActive
+                ? "bg-muted text-primary"
+                : "text-muted-foreground hover:text-primary"
+            }`
+          }
+        >
+          程式編寫
+        </NavLink>
+        <NavLink
+          to="/robot-config"
+          className={({ isActive }) =>
+            `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              isActive
+                ? "bg-muted text-primary"
+                : "text-muted-foreground hover:text-primary"
+            }`
+          }
+        >
+          設定
+        </NavLink>
         <FlowMenu />
       </div>
 

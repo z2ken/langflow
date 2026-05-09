@@ -1,0 +1,9 @@
+robots:
+  robot_01:
+    adapter: MyRobotAdapter
+    host: "192.168.1.10"
+    port: 8080
+  robot_02:
+    adapter: MyRobotAdapter
+    host: "192.168.1.11"
+    port: 8080
