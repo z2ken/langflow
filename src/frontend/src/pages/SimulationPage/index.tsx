@@ -9,6 +9,7 @@ import {
 import { Scene } from "./components/Scene";
 import { RobotModel } from "./components/RobotModel";
 import { ModeTabs } from "./components/ModeTabs";
+import { JointDragHandles } from "./components/JointDragHandles";
 import { useUrdf } from "./hooks/useUrdf";
 import { useSimulator } from "./hooks/useSimulator";
 
@@ -16,7 +17,7 @@ export default function SimulationPage() {
   const [robots, setRobots] = useState<string[]>([]);
   const [robotId, setRobotId] = useState<string>("");
   const { robot, status, error } = useUrdf(robotId || null);
-  const { mode, setMode, joints } = useSimulator(robotId);
+  const { mode, setMode, joints, setJoints, dragEnabled } = useSimulator(robotId);
 
   useEffect(() => {
     fetch("/api/v1/robots")
@@ -61,6 +62,12 @@ export default function SimulationPage() {
         {status === "ready" && robot && (
           <Scene>
             <RobotModel robot={robot} jointsDeg={joints} />
+            <JointDragHandles
+              robot={robot}
+              jointsDeg={joints}
+              enabled={dragEnabled}
+              onJointsChange={setJoints}
+            />
           </Scene>
         )}
         {!robotId && (
