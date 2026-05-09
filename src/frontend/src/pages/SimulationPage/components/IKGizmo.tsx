@@ -2,6 +2,7 @@ import { TransformControls } from "@react-three/drei";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Mesh, Vector3 } from "three";
 import type { URDFRobot } from "urdf-loader/src/URDFClasses";
+import { getEndEffectorLinkName } from "../hooks/urdfChain";
 
 interface Props {
   robot: URDFRobot;
@@ -14,8 +15,6 @@ interface Props {
   /** Optional gate — return true to reject this update (e.g. collision). */
   wouldCollide?: (jointsDeg: number[]) => boolean;
 }
-
-const TCP_LINK = "tcp";
 
 // TC cast: drei TransformControls `object` prop type is strict about THREE.Object3D
 // subtypes; using `as any` avoids the variance mismatch without losing runtime safety.
@@ -32,17 +31,18 @@ export function IKGizmo({
 }: Props) {
   const targetRef = useRef<Mesh>(null);
   const [unreachableFlash, setUnreachableFlash] = useState(false);
+  const tcpLinkName = useMemo(() => getEndEffectorLinkName(robot), [robot]);
 
   // Place the dummy mesh at the TCP world position whenever the joints
   // change, so the gizmo follows the arm when not actively dragging.
   useEffect(() => {
-    if (!targetRef.current) return;
-    const tcp = (robot as any).links?.[TCP_LINK];
+    if (!targetRef.current || !tcpLinkName) return;
+    const tcp = (robot as any).links?.[tcpLinkName];
     if (!tcp) return;
     const v = new Vector3();
     tcp.getWorldPosition(v);
     targetRef.current.position.copy(v);
-  }, [jointsDeg, robot]);
+  }, [jointsDeg, robot, tcpLinkName]);
 
   const jointsRad = useMemo(
     () => jointsDeg.map((d) => (d * Math.PI) / 180),
