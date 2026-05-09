@@ -17,6 +17,7 @@ import { TrajectoryTrail } from "./components/TrajectoryTrail";
 import { PlaybackPanel } from "./components/PlaybackPanel";
 import { EmergencyStop } from "./components/EmergencyStop";
 import { JointStatusHUD } from "./components/JointStatusHUD";
+import { JointSliderPanel } from "./components/JointSliderPanel";
 import { useUrdf } from "./hooks/useUrdf";
 import { useSimulator } from "./hooks/useSimulator";
 import { useIKSolver } from "./hooks/useIKSolver";
@@ -166,6 +167,16 @@ export default function SimulationPage() {
             </div>
           )}
         </div>
+        {status === "ready" && robot && dragEnabled && (
+          <div className="w-72 shrink-0">
+            <JointSliderPanel
+              robot={robot}
+              jointsDeg={joints}
+              enabled={dragEnabled}
+              onJointsChange={setJoints}
+            />
+          </div>
+        )}
         {mode === "Offline" && robotId && (
           <PlaybackPanel
             robotId={robotId}
