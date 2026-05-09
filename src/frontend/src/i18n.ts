@@ -16,8 +16,14 @@ i18n.use(initReactI18next).init({
 export async function loadLanguage(lang: string): Promise<void> {
   if (lang === "en") return;
   if (i18n.hasResourceBundle(lang, "translation")) return;
-  const messages = await import(`./locales/${lang}.json`);
-  i18n.addResourceBundle(lang, "translation", messages.default);
+  try {
+    const messages = await import(`./locales/${lang}.json`);
+    i18n.addResourceBundle(lang, "translation", messages.default);
+  } catch {
+    // No bundle for this locale (e.g. browser reports "zh" but only
+    // "zh-Hans" exists). Fall back silently to default English so the
+    // app still mounts.
+  }
 }
 
 export default i18n;

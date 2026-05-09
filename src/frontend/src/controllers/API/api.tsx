@@ -52,6 +52,12 @@ function ApiInterceptor() {
         // Browser automatically sends cookies with requests (including HttpOnly cookies)
         // No need to manually add Authorization header from cookies
 
+        // Defensive: standard `fetch(url)` calls (no second arg) deliver
+        // config === undefined here. Three.js loaders, native helpers, and our
+        // own `fetch(url)` callers all hit this path — leave them alone.
+        if (!config) return [url, config];
+        if (!config.headers) config.headers = {};
+
         if (!isExternalURL(url)) {
           for (const [key, value] of Object.entries(customHeaders)) {
             config.headers[key] = value;
