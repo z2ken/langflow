@@ -110,6 +110,18 @@ export default function AppHeader(): JSX.Element {
           程式編寫
         </NavLink>
         <NavLink
+          to="/simulation"
+          className={({ isActive }) =>
+            `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              isActive
+                ? "bg-muted text-primary"
+                : "text-muted-foreground hover:text-primary"
+            }`
+          }
+        >
+          3D 模擬
+        </NavLink>
+        <NavLink
           to="/robot-config"
           className={({ isActive }) =>
             `rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${

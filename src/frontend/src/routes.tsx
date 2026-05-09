@@ -44,6 +44,7 @@ import ViewPage from "./pages/ViewPage";
 import MonitoringPage from "./pages/MonitoringPage";
 import RobotConfigPage from "./pages/RobotConfigPage";
 import ProgrammingPage from "./pages/ProgrammingPage";
+import SimulationPage from "./pages/SimulationPage";
 
 const AdminPage = lazy(() => import("./pages/AdminPage"));
 const LoginAdminPage = lazy(() => import("./pages/AdminPage/LoginPage"));
@@ -148,6 +149,7 @@ const router = createBrowserRouter(
                 <Route path="monitoring" element={<MonitoringPage />} />
                 <Route path="robot-config" element={<RobotConfigPage />} />
                 <Route path="programming" element={<ProgrammingPage />} />
+                <Route path="simulation" element={<SimulationPage />} />
                 <Route path="settings" element={<SettingsPage />}>
                   <Route
                     index
