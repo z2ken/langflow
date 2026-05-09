@@ -16,6 +16,7 @@ import { CollisionViz } from "./components/CollisionViz";
 import { TrajectoryTrail } from "./components/TrajectoryTrail";
 import { PlaybackPanel } from "./components/PlaybackPanel";
 import { EmergencyStop } from "./components/EmergencyStop";
+import { JointStatusHUD } from "./components/JointStatusHUD";
 import { useUrdf } from "./hooks/useUrdf";
 import { useSimulator } from "./hooks/useSimulator";
 import { useIKSolver } from "./hooks/useIKSolver";
@@ -121,6 +122,9 @@ export default function SimulationPage() {
             <div className="absolute inset-0 flex items-center justify-center text-destructive">
               URDF 載入失敗：{error}
             </div>
+          )}
+          {status === "ready" && robot && (
+            <JointStatusHUD robot={robot} jointsDeg={joints} />
           )}
           {status === "ready" && robot && (
             <Scene>
