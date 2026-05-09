@@ -118,6 +118,71 @@ async def run_program(body: RunProgramRequest):
     return {"robot_id": body.robot_id, "log": log}
 
 
+@router.post("/run/stream")
+async def run_program_stream(body: RunProgramRequest):
+    """SSE variant of /run. Emits step_start / step_end / done / error events."""
+    try:
+        adapter = robot_registry.get(body.robot_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Robot '{body.robot_id}' not found")
+
+    async def event_stream():
+        log: list[dict] = []
+        try:
+            for raw_line in body.code.splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+
+                joints_before = list((await adapter.get_status()).joints)
+                yield (
+                    "event: step_start\n"
+                    f"data: {json.dumps({'line': line, 'joints_before': joints_before})}\n\n"
+                )
+
+                parts = line.split()
+                cmd = parts[0].upper()
+                params: dict = {}
+                for token in parts[1:]:
+                    if "=" in token:
+                        k, _, v = token.partition("=")
+                        try:
+                            params[k] = float(v)
+                        except ValueError:
+                            params[k] = v
+                result = await adapter.send_command(cmd, params)
+                joints_after = list((await adapter.get_status()).joints)
+                step_log = {
+                    "line": line,
+                    "joints_after": joints_after,
+                    "success": result.success,
+                    "message": result.message,
+                }
+                log.append(step_log)
+                yield (
+                    "event: step_end\n"
+                    f"data: {json.dumps(step_log)}\n\n"
+                )
+                if not result.success:
+                    break
+
+            yield (
+                "event: done\n"
+                f"data: {json.dumps({'robot_id': body.robot_id, 'log': log})}\n\n"
+            )
+        except Exception as e:  # noqa: BLE001
+            yield (
+                "event: error\n"
+                f"data: {json.dumps({'detail': str(e)})}\n\n"
+            )
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
 # ---- config CRUD ----
 
 @router.get("/config")
