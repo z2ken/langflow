@@ -34,6 +34,7 @@ export function useSimulator(robotId: string): UseSimulator {
   const pendingJointsRef = useRef<number[] | null>(null);
 
   const openWs = useCallback(() => {
+    if (!robotId) return; // no-op while page is still loading the robot list
     if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED) return;
     const ws = new WebSocket(makeWsUrl(robotId));
     ws.onmessage = (ev) => {

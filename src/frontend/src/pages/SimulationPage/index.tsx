@@ -9,14 +9,14 @@ import {
 import { Scene } from "./components/Scene";
 import { RobotModel } from "./components/RobotModel";
 import { useUrdf } from "./hooks/useUrdf";
+import { useSimulator } from "./hooks/useSimulator";
 
 export default function SimulationPage() {
   const [robots, setRobots] = useState<string[]>([]);
   const [robotId, setRobotId] = useState<string>("");
   const { robot, status, error } = useUrdf(robotId || null);
-  const [joints, setJoints] = useState<number[]>([0, 0, 0, 0, 0, 0]);
+  const { mode, joints } = useSimulator(robotId);
 
-  // Robot list
   useEffect(() => {
     fetch("/api/v1/robots")
       .then((r) => r.json())
@@ -26,26 +26,6 @@ export default function SimulationPage() {
       })
       .catch(() => {});
   }, []);
-
-  // Live joint state via WebSocket
-  useEffect(() => {
-    if (!robotId) return;
-    const proto = window.location.protocol === "https:" ? "wss" : "ws";
-    const ws = new WebSocket(
-      `${proto}://${window.location.host}/api/v1/robots/ws/${robotId}`,
-    );
-    ws.onmessage = (e) => {
-      try {
-        const d = JSON.parse(e.data);
-        if (Array.isArray(d.joints) && d.joints.length === 6) {
-          setJoints(d.joints);
-        }
-      } catch {
-        // ignore malformed frames
-      }
-    };
-    return () => ws.close();
-  }, [robotId]);
 
   return (
     <div className="flex h-full w-full flex-col p-6">
@@ -63,7 +43,7 @@ export default function SimulationPage() {
             ))}
           </SelectContent>
         </Select>
-        <span className="text-xs text-muted-foreground">Live 模式</span>
+        <span className="text-xs text-muted-foreground">{mode} 模式</span>
       </div>
 
       <div className="relative flex-1 overflow-hidden rounded-md border">
