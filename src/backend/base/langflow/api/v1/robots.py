@@ -1,8 +1,10 @@
 import asyncio
+import json
 import os
 from dataclasses import asdict
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from langflow.robot.registry import AVAILABLE_ADAPTERS, robot_registry
@@ -245,3 +247,53 @@ async def generate_program_from_nl(body: NLProgramRequest):
         "instruction": body.instruction,
         "generated_code": text,
     }
+
+
+@router.post("/nl-program/stream")
+async def stream_program_from_nl(body: NLProgramRequest):
+    """
+    Streaming variant of /nl-program. Emits Server-Sent Events:
+        event: delta   data: {"text": "..."}
+        event: done    data: {"text": "<full script>"}
+        event: error   data: {"detail": "..."}
+    """
+    try:
+        robot_registry.get(body.robot_id)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Robot '{body.robot_id}' not found")
+    if not body.instruction.strip():
+        raise HTTPException(status_code=400, detail="instruction 不可為空")
+
+    client = _get_anthropic_client()
+
+    import anthropic
+
+    async def event_stream():
+        full = []
+        try:
+            async with client.messages.stream(
+                model="claude-opus-4-7",
+                max_tokens=2048,
+                system=[
+                    {
+                        "type": "text",
+                        "text": _NL_SYSTEM_PROMPT,
+                        "cache_control": {"type": "ephemeral"},
+                    }
+                ],
+                messages=[{"role": "user", "content": body.instruction}],
+            ) as stream:
+                async for delta in stream.text_stream:
+                    full.append(delta)
+                    yield f"event: delta\ndata: {json.dumps({'text': delta})}\n\n"
+            yield f"event: done\ndata: {json.dumps({'text': ''.join(full).strip()})}\n\n"
+        except anthropic.APIStatusError as e:
+            yield f"event: error\ndata: {json.dumps({'detail': str(e), 'status': e.status_code})}\n\n"
+        except anthropic.APIConnectionError as e:
+            yield f"event: error\ndata: {json.dumps({'detail': f'Anthropic API 連線失敗: {e}'})}\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

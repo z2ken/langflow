@@ -52,14 +52,45 @@ export function AIAssistant({ robots }: Props) {
     setError(null);
     setCode("");
     try {
-      const res = await fetch("/api/v1/robots/nl-program", {
+      const res = await fetch("/api/v1/robots/nl-program/stream", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ robot_id: robotId, instruction }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail ?? "生成失敗");
-      setCode(data.generated_code ?? "");
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail ?? `生成失敗 (${res.status})`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let acc = "";
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        // SSE frames are delimited by blank lines
+        const frames = buffer.split("\n\n");
+        buffer = frames.pop() ?? "";
+        for (const frame of frames) {
+          const eventLine = frame.split("\n").find((l) => l.startsWith("event:"));
+          const dataLine = frame.split("\n").find((l) => l.startsWith("data:"));
+          if (!eventLine || !dataLine) continue;
+          const event = eventLine.slice("event:".length).trim();
+          const payload = JSON.parse(dataLine.slice("data:".length).trim());
+          if (event === "delta") {
+            acc += payload.text ?? "";
+            setCode(acc);
+          } else if (event === "done") {
+            // Final canonical text (trimmed server-side); use if present
+            if (typeof payload.text === "string" && payload.text) {
+              setCode(payload.text);
+            }
+          } else if (event === "error") {
+            throw new Error(payload.detail ?? "生成失敗");
+          }
+        }
+      }
     } catch (e: any) {
       setError(e.message);
     } finally {
