@@ -15,6 +15,7 @@ import { DragModeTabs, type DragMode } from "./components/DragModeTabs";
 import { CollisionViz } from "./components/CollisionViz";
 import { TrajectoryTrail } from "./components/TrajectoryTrail";
 import { PlaybackPanel } from "./components/PlaybackPanel";
+import { EmergencyStop } from "./components/EmergencyStop";
 import { useUrdf } from "./hooks/useUrdf";
 import { useSimulator } from "./hooks/useSimulator";
 import { useIKSolver } from "./hooks/useIKSolver";
@@ -90,10 +91,27 @@ export default function SimulationPage() {
           onModeChange={setDragMode}
           ikAvailable={ikAvailable}
         />
+        <EmergencyStop mode={mode} robotId={robotId} onModeChange={setMode} />
       </div>
 
       <div className="flex flex-1 min-h-0 gap-3">
-        <div className="relative flex-1 overflow-hidden rounded-md border">
+        <div
+          className={
+            "relative flex-1 overflow-hidden rounded-md border transition-shadow " +
+            (mode === "Sync"
+              ? "border-2 border-red-500 shadow-[0_0_24px_rgba(239,68,68,0.55)]"
+              : "")
+          }
+          data-sync-active={mode === "Sync" ? "true" : "false"}
+        >
+          {mode === "Sync" && (
+            <div
+              className="pointer-events-none absolute left-2 top-2 z-10 rounded bg-red-500/90 px-2 py-1 text-xs font-semibold text-white shadow"
+              data-testid="sync-indicator"
+            >
+              ● Sync 雙向控制中
+            </div>
+          )}
           {status === "loading" && (
             <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
               載入 URDF...
