@@ -3,6 +3,8 @@ robots:
     adapter: MyRobotAdapter
     host: "192.168.1.10"
     port: 8080
+    urdf_path: "robots/mock_6dof/mock_6dof.urdf"
+    mesh_dir: "robots/mock_6dof/meshes"
   robot_02:
     adapter: MyRobotAdapter
     host: "192.168.1.11"
