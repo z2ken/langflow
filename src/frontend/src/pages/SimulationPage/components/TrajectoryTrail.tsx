@@ -1,8 +1,9 @@
 import { Line } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import { Vector3 } from "three";
 import type { URDFRobot } from "urdf-loader/src/URDFClasses";
+import { getEndEffectorLinkName } from "../hooks/urdfChain";
 
 interface Props {
   robot: URDFRobot;
@@ -14,7 +15,6 @@ interface Props {
   maxPoints?: number;
 }
 
-const TCP_LINK = "tcp";
 const SAMPLE_INTERVAL_MS = 33; // ~30 Hz
 const MIN_DELTA = 0.002; // skip points within 2 mm to avoid clutter
 
@@ -27,18 +27,18 @@ export function TrajectoryTrail({
   const pointsRef = useRef<Vector3[]>([]);
   const lastSampleRef = useRef(0);
   const lastClearKeyRef = useRef(clearKey);
+  const tcpLinkName = useMemo(() => getEndEffectorLinkName(robot), [robot]);
 
   useFrame((state) => {
     if (lastClearKeyRef.current !== clearKey) {
       pointsRef.current = [];
       lastClearKeyRef.current = clearKey;
     }
-    if (!recording) return;
+    if (!recording || !tcpLinkName) return;
     const now = state.clock.elapsedTime * 1000;
     if (now - lastSampleRef.current < SAMPLE_INTERVAL_MS) return;
     lastSampleRef.current = now;
-    // Access links via any-cast since URDFRobot typing doesn't expose links map directly
-    const tcp = (robot as any).links?.[TCP_LINK];
+    const tcp = (robot as any).links?.[tcpLinkName];
     if (!tcp) return;
     const v = new Vector3();
     tcp.getWorldPosition(v);

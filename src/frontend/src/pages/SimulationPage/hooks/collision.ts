@@ -5,6 +5,7 @@ import {
   disposeBoundsTree,
 } from "three-mesh-bvh";
 import type { URDFRobot } from "urdf-loader/src/URDFClasses";
+import { getActuatedJointNames } from "./urdfChain";
 
 let bvhPatched = false;
 function ensureBvhPatched(): void {
@@ -23,7 +24,6 @@ export interface LinkBVH {
   linkObject: any;
 }
 
-const JOINT_NAMES = ["j1", "j2", "j3", "j4", "j5", "j6"] as const;
 const ADJACENT_THRESHOLD = 1;
 
 export function intersectGeometryPair(
@@ -49,17 +49,10 @@ export function buildLinkBVHs(robot: URDFRobot): LinkBVH[] {
   const links = (robot as any).links;
   if (!links) return out;
 
-  const ordered: string[] = [
-    "base",
-    "link1",
-    "link2",
-    "link3",
-    "link4",
-    "link5",
-    "link6",
-    "tcp",
-  ];
-  for (const name of ordered) {
+  // Walk all links in URDF declaration order; URDFs declare links serially
+  // along the kinematic chain, so insertion order ≈ adjacency order, which
+  // is what ADJACENT_THRESHOLD relies on.
+  for (const name of Object.keys(links)) {
     const link = links[name];
     if (!link) continue;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -109,9 +102,10 @@ export function checkCollisionsAt(
   bvhs: LinkBVH[],
   jointsRad: number[],
 ): Set<string> {
-  for (let i = 0; i < JOINT_NAMES.length && i < jointsRad.length; i++) {
+  const names = getActuatedJointNames(robot);
+  for (let i = 0; i < names.length && i < jointsRad.length; i++) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (robot as any).setJointValue?.(JOINT_NAMES[i], jointsRad[i]);
+    (robot as any).setJointValue?.(names[i], jointsRad[i]);
   }
   return collidingLinks(bvhs, robot);
 }
