@@ -45,3 +45,32 @@ async def test_gripper_state_recorded():
     await a.send_command("GRIPPER", {"state": "close"})
     s = await a.get_status()
     assert s.extra.get("gripper") == "close"
+
+
+@pytest.mark.asyncio
+async def test_unknown_command_fails():
+    a = MyRobotAdapter(robot_id="r", host="h", port=1)
+    await a.connect()
+    r = await a.send_command("FOO", {})
+    assert r.success is False
+    assert "unknown" in r.message.lower()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("joint", ["X1", "J", "J0", "J7", ""])
+async def test_jog_rejects_bad_joint_name(joint):
+    a = MyRobotAdapter(robot_id="r", host="h", port=1)
+    await a.connect()
+    r = await a.send_command("JOG", {"joint": joint, "delta": 1})
+    assert r.success is False
+
+
+@pytest.mark.asyncio
+async def test_gripper_rejects_bad_state():
+    a = MyRobotAdapter(robot_id="r", host="h", port=1)
+    await a.connect()
+    r = await a.send_command("GRIPPER", {"state": "half"})
+    assert r.success is False
+    # Gripper state should be unchanged from default "open"
+    s = await a.get_status()
+    assert s.extra.get("gripper") == "open"
