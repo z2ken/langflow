@@ -28,7 +28,7 @@ export function DragModeTabs({ mode, onModeChange, ikAvailable }: Props) {
         title={
           ikAvailable
             ? "拖末端（IK）"
-            : "此機器人不支援 IK（URDF 結構不符合 j1..j6 + tcp）"
+            : "此機器人不支援 IK（URDF 結構無法解析成可解的鏈）"
         }
         className="text-xs"
       >

@@ -7,7 +7,7 @@ import { type SolveOptions, solveCCD } from "./ikSolver";
 export interface UseIKSolver {
   /** Solve for joint angles (radians) that move the TCP to the world-space target. */
   solve: (target: Vector3, current: number[]) => number[] | null;
-  /** True if the URDF was successfully parsed into a chain (j1..j6 + tcp link). */
+  /** True if the URDF was successfully parsed into a kinematic chain. */
   available: boolean;
 }
 

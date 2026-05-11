@@ -75,6 +75,21 @@ describe("JointSliderPanel", () => {
     expect(onJointsChange).toHaveBeenCalledWith([5, 42]);
   });
 
+  it("zeros every joint when 重設 is clicked", () => {
+    const onJointsChange = jest.fn();
+    const robot = fakeRobot(["j1", "j2", "j3"]);
+    render(
+      <JointSliderPanel
+        robot={robot}
+        jointsDeg={[10, -20, 30]}
+        enabled
+        onJointsChange={onJointsChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /重設/ }));
+    expect(onJointsChange).toHaveBeenCalledWith([0, 0, 0]);
+  });
+
   it("falls back to ±180° when joint limits are missing", () => {
     const robot = {
       joints: { j1: { jointType: "revolute" } },

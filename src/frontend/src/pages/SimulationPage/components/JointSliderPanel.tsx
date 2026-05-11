@@ -49,12 +49,23 @@ export function JointSliderPanel({
     onJointsChange(next);
   };
 
+  const resetAll = () => onJointsChange(bounds.map(() => 0));
+
   return (
     <div
       className="rounded-md border bg-background p-3 text-xs"
       data-testid="joint-slider-panel"
     >
-      <div className="mb-2 font-semibold">關節控制</div>
+      <div className="mb-2 flex items-center justify-between">
+        <span className="font-semibold">關節控制</span>
+        <button
+          type="button"
+          onClick={resetAll}
+          className="rounded border px-2 py-0.5 text-[10px] hover:bg-muted"
+        >
+          重設為 0
+        </button>
+      </div>
       <div className="flex flex-col gap-2">
         {bounds.map(({ name, minDeg, maxDeg }, i) => {
           const value = jointsDeg[i] ?? 0;
