@@ -17,9 +17,16 @@ Prerequisites
 
 Usage
 -----
-Run as a stdio MCP server (used by Claude Desktop / Claude Code / mcp inspect):
+Run as a **stdio** MCP server (Claude Desktop / Claude Code / mcp inspect)::
 
     .venv/bin/python mcp_server.py
+    # or explicitly:
+    .venv/bin/python mcp_server.py --transport stdio
+
+Run as a **streamable HTTP** server (browsers, remote agents, curl)::
+
+    .venv/bin/python mcp_server.py --transport http --port 8765
+    # POST endpoint: http://localhost:8765/mcp
 
 Claude Desktop config example (``~/Library/Application Support/Claude/claude_desktop_config.json``)::
 
@@ -36,13 +43,16 @@ Claude Desktop config example (``~/Library/Application Support/Claude/claude_des
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
+from contextlib import asynccontextmanager
 from typing import Any
 
 import httpx
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
+from mcp.server.streamable_http_manager import StreamableHTTPSessionManager
 from mcp.types import TextContent, Tool
 
 API_BASE = os.environ.get("ROBOT_API_BASE", "http://localhost:7860/api/v1/robots").rstrip("/")
@@ -207,7 +217,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         return _error(f"Unknown tool: {name}")
 
 
-async def main() -> None:
+async def stdio_main() -> None:
     async with stdio_server() as (read_stream, write_stream):
         await server.run(
             read_stream,
@@ -216,7 +226,54 @@ async def main() -> None:
         )
 
 
-if __name__ == "__main__":
+async def http_main(host: str, port: int) -> None:
+    """Serve over streamable HTTP at /mcp using StreamableHTTPSessionManager."""
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+    import uvicorn
+
+    manager = StreamableHTTPSessionManager(
+        app=server,
+        stateless=True,
+        json_response=True,
+    )
+
+    async def handle_streamable_http(scope, receive, send):
+        await manager.handle_request(scope, receive, send)
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        async with manager.run():
+            yield
+
+    starlette_app = Starlette(
+        routes=[Mount("/mcp", app=handle_streamable_http)],
+        lifespan=lifespan,
+    )
+
+    config = uvicorn.Config(starlette_app, host=host, port=port, log_level="info")
+    await uvicorn.Server(config).serve()
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description="TM Robot HMI MCP server")
+    parser.add_argument(
+        "--transport",
+        choices=["stdio", "http"],
+        default="stdio",
+        help="Transport to listen on (default: stdio)",
+    )
+    parser.add_argument("--host", default="127.0.0.1", help="HTTP bind host")
+    parser.add_argument("--port", type=int, default=8765, help="HTTP bind port")
+    args = parser.parse_args()
+
     import asyncio
 
-    asyncio.run(main())
+    if args.transport == "stdio":
+        asyncio.run(stdio_main())
+    else:
+        asyncio.run(http_main(args.host, args.port))
+
+
+if __name__ == "__main__":
+    main()
