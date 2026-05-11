@@ -51,20 +51,41 @@ export function JointSliderPanel({
 
   const resetAll = () => onJointsChange(bounds.map(() => 0));
 
+  const copyAsMove = () => {
+    // The runtime script interpreter keys joints by index (j1..jN) regardless
+    // of the URDF joint names, so this script is portable across robots.
+    const parts = bounds.map((_, i) => {
+      const v = jointsDeg[i] ?? 0;
+      const rounded = Math.round(v * 10) / 10;
+      return `j${i + 1}=${rounded}`;
+    });
+    void navigator.clipboard?.writeText("MOVE " + parts.join(" "));
+  };
+
   return (
     <div
       className="rounded-md border bg-background p-3 text-xs"
       data-testid="joint-slider-panel"
     >
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <span className="font-semibold">關節控制</span>
-        <button
-          type="button"
-          onClick={resetAll}
-          className="rounded border px-2 py-0.5 text-[10px] hover:bg-muted"
-        >
-          重設為 0
-        </button>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={copyAsMove}
+            className="rounded border px-2 py-0.5 text-[10px] hover:bg-muted"
+            title="把目前 6 軸值複製成 MOVE 指令到剪貼簿"
+          >
+            複製為 MOVE
+          </button>
+          <button
+            type="button"
+            onClick={resetAll}
+            className="rounded border px-2 py-0.5 text-[10px] hover:bg-muted"
+          >
+            重設為 0
+          </button>
+        </div>
       </div>
       <div className="flex flex-col gap-2">
         {bounds.map(({ name, minDeg, maxDeg }, i) => {

@@ -75,6 +75,24 @@ describe("JointSliderPanel", () => {
     expect(onJointsChange).toHaveBeenCalledWith([5, 42]);
   });
 
+  it("writes a MOVE command for the current pose to the clipboard", async () => {
+    const writeText = jest.fn(() => Promise.resolve());
+    Object.assign(navigator, { clipboard: { writeText } });
+    const robot = fakeRobot(["j1", "j2", "j3", "j4", "j5", "j6"]);
+    render(
+      <JointSliderPanel
+        robot={robot}
+        jointsDeg={[10, -20, 30.5, 0, 45, -90]}
+        enabled
+        onJointsChange={jest.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /複製為 MOVE/ }));
+    expect(writeText).toHaveBeenCalledWith(
+      "MOVE j1=10 j2=-20 j3=30.5 j4=0 j5=45 j6=-90",
+    );
+  });
+
   it("zeros every joint when 重設 is clicked", () => {
     const onJointsChange = jest.fn();
     const robot = fakeRobot(["j1", "j2", "j3"]);
